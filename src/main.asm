@@ -1,52 +1,113 @@
 [org 0x7c00]
+bits 16
 
 jmp main
 
-
-;
-; Print a string
-;   - bx: address of string
-puts:
-    mov al, [bx]
-    cmp al, 0
-    je exit
-
-    mov ah, 0x0e        ; display character in tty mode
-    int 0x10            ;   - read from al
-    inc bx
-    jmp puts
-
-exit:
+print:
+    mov ah, 0x0e        ; enable teletype mode
+    int 0x10            ; print from al
+    xor ah, ah
     ret
 
 ;
-; Read a string into `buffer`
+; Print a null-terminated string.
+;   - bx: address of string
+;
+puts:
+    mov al, [bx]
+
+    cmp al, 0
+    je .exit
+
+    call print
+
+    inc bx
+    jmp puts
+
+    .exit:
+        ret
+
+
+;
+; Read a string into `buffer`.
+;
 readstr:
     mov bx, buffer
-    jmp readchar
 
-    readchar:
-        mov ah, 0           ; wait for keyboard input
-        int 0x16            ;   - stored in al
+    .readchar:
+        mov ah, 0           ; read char into al
+        int 0x16            ;
+        xor ah, ah          ;
 
-        cmp al, 0x0D
-        je exit
+        cmp al, 0x0D        ; check for carriage return
+        je .storestr
 
-        ; mov ah, 0x0e        ; display character in tty mode
-        ; int 0x10            ;   - read from al
-
-        mov [bx], al
+        push ax
         inc bx
 
-        jmp readchar
+        jmp .readchar
 
+    .storestr:
+        dec bx
+
+        pop ax
+        mov [bx], al
+
+        cmp bx, buffer
+        jle .exit
+
+        jmp .storestr
+
+    .exit:
+        ret
+
+;
+; Print a 16 bit register in hex.
+;   - reads from bx
+;
+printreg:
+    mov cl, 3
+    .loop:
+        cmp cl, 0
+        jl .exit
+
+        mov dx, bx
+
+        shl cl, 2           ; multiply then divide cl by 4
+        shr dx, cl
+        shr cl, 2
+
+        and dx, 0x000f      ; keep only bottom nibble
+        ; bx : aaaa bbbb cccc dddd
+        call .print_nibble
+
+        dec cl
+        jmp .loop
+
+    .print_nibble:
+        cmp dx, 9           ; check nibble is numeric
+        jg .letter
+
+        jmp .numeral
+
+    .numeral:
+        add dx, 0x30        ; offset from 0x0 to '0'
+
+        mov al, dl
+        call print
+        ret
+
+    .letter:
+        add dx, 0x37        ; offset from 0xa to 'a'
+
+        mov al, dl
+        call print
+        ret
+
+    .exit:
+        ret
 
 main:
-    call readstr
-
-    mov bx, buffer
-    call puts
-
     jmp $
 
 
@@ -54,7 +115,7 @@ main:
 
 str: db "hello world", 0
 
-buffer: times 10 db 0
+buffer: times 64 db 0
 
 
 
