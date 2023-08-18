@@ -107,6 +107,27 @@ printreg:
     .exit:
         ret
 
+;
+; Convert bl to decimal
+; Stores decimal value in hex, ie
+; 0x38 (0d56) becomes 0x56
+;  - Read from bl
+;  - Returns to ax
+;
+dconvert:
+    ; ab cd
+    ;
+    ; d
+    ;
+    ;
+    ;
+    ;
+    mov bl, cl
+    and cl, 0b00000011
+    push cx
+
+    ret
+
 main:
     jmp $
 
@@ -116,6 +137,8 @@ main:
 str: db "hello world", 0
 
 buffer: times 64 db 0
+
+dec: times 6 db 0
 
 
 
